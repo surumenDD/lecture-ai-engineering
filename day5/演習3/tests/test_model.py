@@ -11,7 +11,6 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-import psutil
 
 # テスト用データとモデルパスを定義
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/Titanic.csv")
@@ -211,17 +210,22 @@ def test_model_probability_output(train_model):
 
 def test_model_memory_usage(train_model):
     """モデルのメモリ使用量を検証"""
+    try:
+        import psutil
+    except ImportError:
+        pytest.skip("psutilモジュールがインストールされていないため、メモリ使用量のテストをスキップします")
+    
     process = psutil.Process(os.getpid())
     initial_memory = process.memory_info().rss
-
+    
     model, X_test, _ = train_model
-
+    
     # 予測実行
     model.predict(X_test)
-
+    
     final_memory = process.memory_info().rss
     memory_usage = (final_memory - initial_memory) / 1024 / 1024  # MB単位
-
+    
     # メモリ使用量が100MB未満であることを確認
     assert memory_usage < 100, f"メモリ使用量が大きすぎます: {memory_usage:.2f}MB"
 
