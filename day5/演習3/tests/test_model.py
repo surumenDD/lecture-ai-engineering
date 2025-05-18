@@ -171,3 +171,78 @@ def test_model_reproducibility(sample_data, preprocessor):
     assert np.array_equal(
         predictions1, predictions2
     ), "モデルの予測結果に再現性がありません"
+
+
+def test_model_prediction_consistency(train_model):
+    """モデルの予測の一貫性を検証"""
+    model, X_test, _ = train_model
+
+    # 同じ入力に対して複数回予測を実行
+    predictions = []
+    for _ in range(5):
+        pred = model.predict(X_test)
+        predictions.append(pred)
+
+    # すべての予測が同じ結果であることを確認
+    for i in range(1, len(predictions)):
+        assert np.array_equal(
+            predictions[0], predictions[i]
+        ), "予測結果に一貫性がありません"
+
+
+def test_model_probability_output(train_model):
+    """モデルの確率出力を検証"""
+    model, X_test, _ = train_model
+
+    # 確率予測を取得
+    probabilities = model.predict_proba(X_test)
+
+    # 確率の合計が1であることを確認
+    assert np.allclose(
+        np.sum(probabilities, axis=1), 1.0
+    ), "確率の合計が1ではありません"
+
+    # 確率が0から1の間であることを確認
+    assert np.all(probabilities >= 0) and np.all(
+        probabilities <= 1
+    ), "確率が0から1の範囲外です"
+
+
+def test_model_memory_usage(train_model):
+    """モデルのメモリ使用量を検証"""
+    try:
+        import psutil
+    except ImportError:
+        pytest.skip(
+            "psutilモジュールがインストールされていないため、メモリ使用量のテストをスキップします"
+        )
+
+    process = psutil.Process(os.getpid())
+    initial_memory = process.memory_info().rss
+
+    model, X_test, _ = train_model
+
+    # 予測実行
+    model.predict(X_test)
+
+    final_memory = process.memory_info().rss
+    memory_usage = (final_memory - initial_memory) / 1024 / 1024  # MB単位
+
+    # メモリ使用量が100MB未満であることを確認
+    assert memory_usage < 100, f"メモリ使用量が大きすぎます: {memory_usage:.2f}MB"
+
+
+def test_model_feature_importance(train_model):
+    """モデルの特徴量重要度を検証"""
+    model, _, _ = train_model
+
+    # 特徴量重要度を取得
+    feature_importances = model.named_steps["classifier"].feature_importances_
+
+    # 重要度が0以上であることを確認
+    assert np.all(feature_importances >= 0), "特徴量重要度に負の値が含まれています"
+
+    # 重要度の合計が1であることを確認
+    assert np.isclose(
+        np.sum(feature_importances), 1.0
+    ), "特徴量重要度の合計が1ではありません"
